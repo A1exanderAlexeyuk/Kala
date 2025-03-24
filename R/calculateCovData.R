@@ -83,7 +83,7 @@ getFeatureExtractionReportByTimeWindows <- function(
     covariateData,
     startDays = NULL,
     endDays = NULL,
-    includeNonTimeVarying = FALSE,
+    includeNonTimeVarying = TRUE,
     minAverageValue = 0.01,
     includedCovariateIds = NULL,
     excludedCovariateIds = NULL,
@@ -111,7 +111,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       table1Specifications$covariateIds |>
       paste(collapse = ",") |>
       commaSeparaedStringToIntArray()
-
+    
     if (!is.null(includedCovariateIds)) {
       includedCovariateIds <- intersect(
         includedCovariateIds,
@@ -121,7 +121,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       includedCovariateIds <- includedCovariateIdsFromTable1Specifications
     }
   }
-
+  
   # Join covariateRef and analysisRef to get full covariate information
   covariateAnalysisId <- covariateData$covariateRef |>
     dplyr::select(
@@ -139,21 +139,21 @@ getFeatureExtractionReportByTimeWindows <- function(
         ),
       by = "analysisId"
     )
-
+  
   # Filter by included/excluded covariateIds if specified
   if (!is.null(includedCovariateIds)) {
     covariateAnalysisId <- covariateAnalysisId |>
       dplyr::filter(covariateId %in% includedCovariateIds)
   }
-
+  
   if (!is.null(excludedCovariateIds)) {
     covariateAnalysisId <- covariateAnalysisId |>
       dplyr::filter(!covariateId %in% excludedCovariateIds)
   }
-
+  
   reportTimeVarying <- dplyr::tibble()
   reportNonTimeVarying <- dplyr::tibble()
-
+  
   # If no specific time windows provided, use all from covariateData$timeRef
   if (all(
     is.null(startDays),
@@ -169,7 +169,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       dplyr::collect() |>
       dplyr::pull(endDay)
   }
-
+  
   # Process time-varying covariates
   if (any(!is.null(startDays), !is.null(endDays))) {
     # Binary covariates
@@ -192,7 +192,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         by = "timeId"
       ) |>
       dplyr::inner_join(covariateAnalysisId,
-        by = "covariateId"
+                        by = "covariateId"
       ) |>
       dplyr::arrange(
         startDay,
@@ -213,7 +213,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       dplyr::filter(averageValue > minAverageValue) |>
       dplyr::collect() |>
       dplyr::mutate(continuous = 0)
-
+    
     # Continuous covariates if available
     if (!is.null(covariateData$covariatesContinuous)) {
       # Get statistics for continuous covariates
@@ -237,7 +237,7 @@ getFeatureExtractionReportByTimeWindows <- function(
           by = "timeId"
         ) |>
         dplyr::inner_join(covariateAnalysisId,
-          by = "covariateId"
+                          by = "covariateId"
         ) |>
         dplyr::arrange(
           startDay,
@@ -268,7 +268,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         )) |>
         dplyr::mutate(covariateName = paste0(covariateName, " (", statistic, ")")) |>
         dplyr::select(-statistic)
-
+      
       # Get count values for continuous covariates
       reportTimeVarying2b <-
         covariateData$covariatesContinuous |>
@@ -290,7 +290,7 @@ getFeatureExtractionReportByTimeWindows <- function(
           by = "timeId"
         ) |>
         dplyr::inner_join(covariateAnalysisId,
-          by = "covariateId"
+                          by = "covariateId"
         ) |>
         dplyr::select(
           covariateId,
@@ -299,20 +299,20 @@ getFeatureExtractionReportByTimeWindows <- function(
         ) |>
         dplyr::rename(sumValue = countValue) |>
         dplyr::collect()
-
+      
       # Join statistics with counts for continuous covariates
       reportTimeVarying2 <- reportTimeVarying2a |>
         dplyr::inner_join(reportTimeVarying2b,
-          by = c(
-            "covariateId",
-            "periodName"
-          )
+                          by = c(
+                            "covariateId",
+                            "periodName"
+                          )
         ) |>
         dplyr::mutate(continuous = 1)
     } else {
       reportTimeVarying2 <- dplyr::tibble()
     }
-
+    
     # Combine binary and continuous time-varying covariates
     reportTimeVarying <- dplyr::tibble()
     if (nrow(reportTimeVarying1) > 0) {
@@ -327,7 +327,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         reportTimeVarying2
       )
     }
-
+    
     # Format the report if needed
     if (all(
       nrow(reportTimeVarying) > 0,
@@ -356,7 +356,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       reportTimeVarying <- dplyr::tibble()
     }
   }
-
+  
   # Process non-time-varying covariates if requested
   if (includeNonTimeVarying) {
     # Check if timeId column exists and filter accordingly
@@ -368,11 +368,11 @@ getFeatureExtractionReportByTimeWindows <- function(
       covariateDataTemp <- covariateData$covariates |>
         dplyr::filter(cohortDefinitionId == cohortId)
     }
-
+    
     # Binary non-time-varying covariates
     reportNonTimeVarying1 <- covariateDataTemp |>
       dplyr::inner_join(covariateAnalysisId,
-        by = "covariateId"
+                        by = "covariateId"
       ) |>
       dplyr::arrange(dplyr::desc(averageValue)) |>
       dplyr::mutate(periodName = "nonTimeVarying") |>
@@ -390,7 +390,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       dplyr::filter(averageValue > minAverageValue) |>
       dplyr::collect() |>
       dplyr::mutate(continuous = 0)
-
+    
     # Continuous non-time-varying covariates if available
     if (!is.null(covariateData$covariatesContinuous)) {
       # Check if timeId column exists and filter accordingly
@@ -402,12 +402,12 @@ getFeatureExtractionReportByTimeWindows <- function(
         covariatesContinuousTemp <- covariateData$covariatesContinuous |>
           dplyr::filter(cohortDefinitionId == cohortId)
       }
-
+      
       # Get statistics for continuous non-time-varying covariates
       reportNonTimeVarying2a <-
         covariatesContinuousTemp |>
         dplyr::inner_join(covariateAnalysisId,
-          by = "covariateId"
+                          by = "covariateId"
         ) |>
         dplyr::arrange(dplyr::desc(averageValue)) |>
         dplyr::mutate(periodName = "nonTimeVarying") |>
@@ -435,12 +435,12 @@ getFeatureExtractionReportByTimeWindows <- function(
         )) |>
         dplyr::mutate(covariateName = paste0(covariateName, " (", statistic, ")")) |>
         dplyr::select(-statistic)
-
+      
       # Get count values for continuous non-time-varying covariates
       reportNonTimeVarying2b <-
         covariatesContinuousTemp |>
         dplyr::inner_join(covariateAnalysisId,
-          by = "covariateId"
+                          by = "covariateId"
         ) |>
         dplyr::arrange(dplyr::desc(averageValue)) |>
         dplyr::mutate(periodName = "nonTimeVarying") |>
@@ -451,20 +451,20 @@ getFeatureExtractionReportByTimeWindows <- function(
         ) |>
         dplyr::rename(sumValue = countValue) |>
         dplyr::collect()
-
+      
       # Join statistics with counts for continuous non-time-varying covariates
       reportNonTimeVarying2 <- reportNonTimeVarying2a |>
         dplyr::inner_join(reportNonTimeVarying2b,
-          by = c(
-            "covariateId",
-            "periodName"
-          )
+                          by = c(
+                            "covariateId",
+                            "periodName"
+                          )
         ) |>
         dplyr::mutate(continuous = 1)
     } else {
       reportNonTimeVarying2 <- dplyr::tibble()
     }
-
+    
     # Combine binary and continuous non-time-varying covariates
     reportNonTimeVarying <- dplyr::tibble()
     if (nrow(reportNonTimeVarying1) > 0) {
@@ -479,7 +479,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         reportNonTimeVarying2
       )
     }
-
+    
     # Format the non-time-varying report if needed
     if (all(
       nrow(reportNonTimeVarying) > 0,
@@ -508,13 +508,13 @@ getFeatureExtractionReportByTimeWindows <- function(
       reportNonTimeVarying <- dplyr::tibble()
     }
   }
-
+  
   # Combine time-varying and non-time-varying reports
   report <- dplyr::bind_rows(
     reportNonTimeVarying,
     reportTimeVarying
   )
-
+  
   # Process conceptId for custom covariates
   if (all(
     nrow(report) > 0,
@@ -527,19 +527,19 @@ getFeatureExtractionReportByTimeWindows <- function(
         false = conceptId
       ))
   }
-
+  
   # Clean up
   rm("covariateAnalysisId")
-
+  
   # Check if we have results
   if (nrow(report) == 0) {
     writeLines("No results")
     return()
   }
-
+  
   # Store raw report before any table1 formatting
   rawReport <- report
-
+  
   # Process table1 specifications if provided
   if (!is.null(table1Specifications)) {
     table1Specifications <- table1Specifications |>
@@ -553,10 +553,10 @@ getFeatureExtractionReportByTimeWindows <- function(
           label
         ) |>
         tidyr::crossing(report |>
-          dplyr::filter(
-            covariateId %in% commaSeparaedStringToIntArray(table1Specifications[i, ]$covariateIds)
-          ))
-
+                          dplyr::filter(
+                            covariateId %in% commaSeparaedStringToIntArray(table1Specifications[i, ]$covariateIds)
+                          ))
+      
       if (nrow(reportTable1[[i]]) > 0) {
         reportTable1[[i]] <- dplyr::bind_rows(
           reportTable1[[i]] |>
@@ -585,7 +585,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       }
     }
     report <- dplyr::bind_rows(reportTable1)
-
+    
     idCols <- c(
       "labelId",
       "label",
@@ -606,7 +606,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       "domainId"
     )
   }
-
+  
   # Pivot the report if requested
   if (pivot) {
     report <- report |>
@@ -616,7 +616,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         values_from = report
       )
   }
-
+  
   # Add cohort and database information if provided
   if (!is.null(cohortName)) {
     report <-
@@ -627,7 +627,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         report
       )
   }
-
+  
   if (!is.null(databaseId)) {
     report <- dplyr::bind_rows(
       report |>
@@ -636,7 +636,7 @@ getFeatureExtractionReportByTimeWindows <- function(
       report
     )
   }
-
+  
   if (!is.null(reportName)) {
     report <-
       dplyr::bind_rows(
@@ -646,7 +646,7 @@ getFeatureExtractionReportByTimeWindows <- function(
         report
       )
   }
-
+  
   # Prepare and return output
   output <- list()
   output$raw <- rawReport
@@ -664,26 +664,26 @@ getFeatureExtractionReportCommonSequentialTimePeriods <- function() {
     ),
     endDay = c(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1)
   )
-
+  
   postMonthlyPeriods <- dplyr::tibble(
     timeId = c(58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70),
     startDay = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
     endDay = c(1, 31, 61, 91, 121, 151, 181, 211, 241, 271, 301, 331, 361)
   )
-
+  
   onDayOf <- dplyr::tibble(
     timeId = 53,
     startDay = 0,
     endDay = 0
   )
-
+  
   timePeriods <- dplyr::bind_rows(
     priorMonthlyPeriods,
     postMonthlyPeriods,
     onDayOf
   ) |>
     dplyr::arrange(timeId)
-
+  
   return(timePeriods)
 }
 getFeatureExtractionReportInParallel <-
@@ -861,11 +861,11 @@ getFeatureExtractionReportNonTimeVarying <- function(cdmSources,
       reportName = NULL,
       format = TRUE
     )
-
+  
   if (is.null(output)) {
     return(NULL)
   }
-
+  
   if (!is.null(remove)) {
     writeLines(paste0(
       "removing from formatted report",
@@ -879,7 +879,7 @@ getFeatureExtractionReportNonTimeVarying <- function(cdmSources,
         negate = TRUE
       ))
   }
-
+  
   return(output)
 }
 
@@ -894,42 +894,42 @@ getFeatureExtractionStandardizedDifference <-
       message("includeNonTimeVarying is FASLE and timeRef is NULL. no results.")
       return(NULL)
     }
-
+    
     if (all(
       is.null(covariateData1Path),
       is.null(covariateData2Path)
     )) {
       stop("covariateData1/2 and path are all NULL")
     }
-
+    
     covariateData1 <-
       FeatureExtraction::loadCovariateData(file = covariateData1Path)
-
+    
     covariateData2 <-
       FeatureExtraction::loadCovariateData(file = covariateData2Path)
-
+    
     timeRef1 <- covariateData1$timeRef |> dplyr::collect()
     timeRef2 <- covariateData2$timeRef |> dplyr::collect()
-
+    
     compared <-
       OhdsiHelpers::compareTibbles(tibble1 = timeRef1, tibble2 = timeRef2)
-
+    
     if (!compared$identical) {
       message("covariate data is not identical")
       timeRefFromCovariateData <- timeRef1 |>
         dplyr::inner_join(timeRef2,
-          by = c(
-            "timeId",
-            "startDay",
-            "endDay"
-          )
+                          by = c(
+                            "timeId",
+                            "startDay",
+                            "endDay"
+                          )
         )
     } else {
       timeRefFromCovariateData <- timeRef1
     }
-
+    
     standardizedDifference <- c()
-
+    
     if (!is.null(timeRef)) {
       checkmate::assertDataFrame(timeRef)
       if (!"startDay" %in% colnames(timeRef)) {
@@ -951,14 +951,14 @@ getFeatureExtractionStandardizedDifference <-
     } else {
       timeRef <- timeRefFromCovariateData
     }
-
+    
     if (nrow(timeRef) == 0) {
       message("no valid time windows")
     }
-
+    
     for (i in (1:nrow(timeRef))) {
       rowData <- timeRef[i, ]
-
+      
       message(paste0("working on ", rowData$startDay, " to ", rowData$endDay))
       covariateData1 <-
         FeatureExtraction::loadCovariateData(file = covariateData1Path)
@@ -967,7 +967,7 @@ getFeatureExtractionStandardizedDifference <-
           timeId == rowData$timeId,
           cohortDefinitionId == cohortId1
         )
-
+      
       covariateData2 <-
         FeatureExtraction::loadCovariateData(file = covariateData2Path)
       covariateData2$covariates <- covariateData2$covariates |>
@@ -975,7 +975,7 @@ getFeatureExtractionStandardizedDifference <-
           timeId == rowData$timeId,
           cohortDefinitionId == cohortId2
         )
-
+      
       standardizedDifference[[i]] <-
         FeatureExtraction::computeStandardizedDifference(
           covariateData1 = covariateData1,
@@ -984,10 +984,10 @@ getFeatureExtractionStandardizedDifference <-
           cohortId2 = cohortId2
         ) |>
         tidyr::crossing(rowData |>
-          dplyr::select(
-            startDay,
-            endDay
-          )) |>
+                          dplyr::select(
+                            startDay,
+                            endDay
+                          )) |>
         dplyr::relocate(
           startDay,
           endDay,
@@ -995,10 +995,10 @@ getFeatureExtractionStandardizedDifference <-
           covariateName
         )
     }
-
+    
     standardizedDifference <-
       dplyr::bind_rows(standardizedDifference)
-
+    
     if (includeNonTimeVarying) {
       # non time varying
       message("working on non time varying")
@@ -1009,7 +1009,7 @@ getFeatureExtractionStandardizedDifference <-
           is.na(timeId),
           cohortDefinitionId == cohortId1
         )
-
+      
       covariateData2 <-
         FeatureExtraction::loadCovariateData(file = covariateData2Path)
       covariateData2$covariates <- covariateData2$covariates |>
@@ -1024,7 +1024,7 @@ getFeatureExtractionStandardizedDifference <-
           cohortId1 = cohortId1,
           cohortId2 = cohortId2
         )
-
+      
       standardizedDifference <-
         dplyr::bind_rows(
           standardizedDifference,
@@ -1047,7 +1047,7 @@ commaSeparaedStringToIntArray <- function(inputString) {
 
 formatCountPercent <- function(count, percent, percentDigits = 1) {
   return(paste0(formatIntegerWithComma(count), " (", formatPercent(percent,
-    digits = percentDigits
+                                                                   digits = percentDigits
   ), ")"))
 }
 
@@ -1064,22 +1064,22 @@ formatDecimalWithComma <- function(number, decimalPlaces = 1, round = TRUE) {
     decimalPart <- trunc(decimalPart * 10^decimalPlaces) / 10^decimalPlaces
   }
   formattedIntegerPart <- formatC(integerPart,
-    format = "d",
-    big.mark = ","
+                                  format = "d",
+                                  big.mark = ","
   )
   decimalPartAsString <- formatC(decimalPart,
-    format = "f",
-    digits = decimalPlaces
+                                 format = "f",
+                                 digits = decimalPlaces
   )
   formattedDecimalPart <- substr(decimalPartAsString, 3, nchar(decimalPartAsString))
   return(paste(formattedIntegerPart, formattedDecimalPart,
-    sep = "."
+               sep = "."
   ))
 }
 
 formatPercent <- function(x, digits = 2, format = "f", ...) {
   paste0(formatC(100 * x,
-    format = format, digits = digits,
-    ...
+                 format = format, digits = digits,
+                 ...
   ), "%")
 }
